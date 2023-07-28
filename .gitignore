@@ -1,5 +1,5 @@
 backup
 rail_app
 test
-rail_app
-rail_app_test
+rail_app.db
+rail_app_test.db
