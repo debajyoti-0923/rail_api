@@ -13,14 +13,23 @@ router=APIRouter(
     responses={404:{"description":"Not found"}}
 )
 '''
-get src dest day get bus
+get src dest day get train
 '''
 
-@router.post("/get_trn",status_code=201)
+@router.post("/get_trn",response_model=list[schemas.resTrain],status_code=201)
 async def get_trains(
     *,
     attr:schemas.avTrain=Body(...),
     db:Session=Depends(get_db)
 ):
     response=crud.get_av_trains(db,attr)
+    try:
+        if response.status=="failed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=dict(response),
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+    except AttributeError:
+        pass
     return response

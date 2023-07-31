@@ -48,7 +48,7 @@ class Routine(base):
     id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
     trainId:Mapped[str]=mapped_column(ForeignKey("train.id"))
     day:Mapped[int]=mapped_column(nullable=False)
-    departure:Mapped[str]=mapped_column(nullable=False)
+    departure:Mapped[time]=mapped_column(nullable=False)
     deprecated:Mapped[bool]=mapped_column(default=False)
     trains:Mapped["Train"]=relationship(back_populates="routines")
 

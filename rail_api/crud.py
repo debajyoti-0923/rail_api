@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from sqlalchemy import or_,and_,join
 from . import database
 
-import datetime
+from datetime import time,timedelta,datetime
 pwd_context=CryptContext(schemes=["bcrypt"],deprecated=["auto"])
 
 def chk_time(t:str):
@@ -43,7 +43,7 @@ def chk_staiton(db:Session,stns:list):
 
 def get_station(db:Session,stn:str=None):
     if stn is None:
-        data=db.query(models.Station).all()
+        data=db.query(models.Station).first()
         if data==[]:
             return schemas.error(status="failed",detail="value doesn't exists")
         return data
@@ -68,6 +68,7 @@ def remove_station(db:Session,stn:schemas.Station_id):
     if res.status=="failed":
         return schemas.error(status="failed",detail="value doesn't exists")
     db.query(models.Station).filter(models.Station.id==stn.id).delete(synchronize_session=False)
+    
     response=db.query(models.Train).filter(or_(
         models.Train.stops.like(f"{stn.id}-%"),
         models.Train.stops.like(f"%-{stn.id}-%"),
@@ -159,8 +160,8 @@ def modify_train(db:Session,trn:schemas.upTrain):
    
     db.query(models.Train).filter(models.Train.id==trn.id).update(dbModel.model_dump(exclude_none=True))
     db.commit()
-    
-    return schemas.outTrain.model_validate(dbModel)
+    res=db.query(models.Train).filter(models.Train.id==trn.id).first()
+    return schemas.outTrain.model_validate(res)
 
 #------------------------------------------------------------------------------------------
 
@@ -184,7 +185,14 @@ def add_routes(db:Session,r:schemas.Routes):
     if r.day not in (1,2,3,4,5,6,7):
         return schemas.error(status="failed",detail="bad values")
 
+    try:    
+        depTime=time(int(r.departure[:2]),int(r.departure[2:]))
+    except ValueError:
+        return schemas.error(status="failed",detail="bad values")
+
+    # r.departure=depTime
     db_model=models.Routine(**r.model_dump())
+    db_model.departure=depTime
     db.add(db_model)
     db.commit()
     db.refresh(db_model)
@@ -209,6 +217,14 @@ def mod_route(db:Session,r:schemas.upRoute):
         return res
     if r.day is not None and r.day not in (1,2,3,4,5,6,7):
         return schemas.error(status="failed",detail="bad values")
+    
+    try:
+        if r.departure:   
+            depTime=time(int(r.departure[:2]),int(r.departure[2:]))
+            r.departure=depTime
+    except ValueError:
+        return schemas.error(status="failed",detail="bad values")
+
     db.query(models.Routine).filter(models.Routine.id==r.id).update(r.model_dump(exclude_none=True))
     db.commit()
 
@@ -221,15 +237,49 @@ def mod_route(db:Session,r:schemas.upRoute):
 #book
 
 def get_av_trains(db:Session,attr:schemas.avTrain):
-    # avTrains=db.query(models.Train).filter(models.Train.stops.like(f"%{attr.src}%-%{attr.des}%")).all()
     d=attr.date.isoweekday()
-
-    response=db.query(models.Train).join(models.Routine).filter(models.Routine.day==d).filter(models.Train.stops.like(f"%{attr.src}%-%{attr.des}%")).all()
+    res=chk_staiton(db,[attr.src,attr.des])
+    if res.status=="failed":
+        return res
+    response=db.query(
+        models.Train.id,
+        models.Train.name,
+        models.Train.price,
+        models.Train.speed,
+        models.Train.mainQuota,
+        models.Train.remQuota,
+        models.Routine.departure,
+        models.Train.src
+    ).join(models.Routine).filter(models.Routine.day==d).filter(models.Train.stops.like(f"%{attr.src}%-%{attr.des}%")).filter(and_(models.Train.deprecated==0,models.Routine.deprecated==0)).all()
     
-    # for i in response:
-    #     print(i.name,i.id)
+    dep_dist=db.query(models.Station.dist).filter(models.Station.id==attr.src).first()
+    arr_dist=db.query(models.Station.dist).filter(models.Station.id==attr.des).first()
+    dist=abs(dep_dist[0]-arr_dist[0])
+    
+    avTrns=[]
+    for i in response:
 
-    return response
+        src_stn=db.query(models.Station.dist).filter(models.Station.id==i[7]).first()
+        rlvDist=abs(src_stn[0]-dep_dist[0])
+
+        pr=dist*i[2]
+        absDep=datetime.combine(attr.date,i[6])
+        dep=absDep+timedelta(hours=((rlvDist/i[3])))
+        arr=dep+timedelta(hours=((dist/i[3])))
+
+        res=schemas.resTrain(
+            id=i[0],
+            name=i[1],
+            price=pr,
+            speed=i[3],
+            dist=dist,
+            dep=dep,
+            arr=arr
+        )
+
+        avTrns.append(res)
+    
+    return avTrns
 
 # -- SQLite
 # SELECT * FROM train INNER JOIN routine ON train.id==routine.trainId WHERE day=1 AND (stops LIKE "%11%")

@@ -132,7 +132,7 @@ class outRoutes(BaseModel):
     id:int=Field(...)
     trainId:str=Field(...)
     day:int=Field(1)
-    departure:str=Field(...)
+    departure:datetime.time=Field(...)
     deprecated:bool=Field(...)
 
     class Config:
@@ -155,6 +155,17 @@ class avTrain(BaseModel):
     src:str=Field(...)
     des:str=Field(...)
     date:datetime.date=Field(...)
+
+class resTrain(BaseModel):
+    status:str=Field("ok")
+    id:str=Field(...)
+    name:str=Field(...)
+    price:float=Field(...)
+    speed:float=Field(...)
+    # av:int=Field(...)
+    dist:float=Field(...)
+    dep:datetime.datetime=Field(...)
+    arr:datetime.datetime=Field(...)
 
 #---------------------------------------------------
 

@@ -253,15 +253,13 @@ async def remove_routes(
     db:Session=Depends(get_db)
 ):
     response=crud.rem_route(db=db,id=id.id)
-    try:
-        if response.detail:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=dict(response),
-                headers={"WWW-Authenticate": "Bearer"}
-            )
-    except AttributeError:
-        pass
+    
+    if response.status=="failed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=dict(response),
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     return response
 
 @router.patch("/mod_route",response_model=schemas.outRoutes,status_code=201,tags=["Routines"])
@@ -272,14 +270,12 @@ async def modify_routes(
     db:Session=Depends(get_db)
 ):
     response=crud.mod_route(db=db,r=route)
-    try:
-        if response.detail:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=dict(response),
-                headers={"WWW-Authenticate": "Bearer"}
-            )
-    except AttributeError:
-        pass
+    
+    if response.status=="failed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=dict(response),
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     return response
 
