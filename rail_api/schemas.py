@@ -133,7 +133,7 @@ class outRoutes(BaseModel):
     trainId:str=Field(...)
     day:int=Field(1)
     departure:datetime.time=Field(...)
-    deprecated:bool=Field(...)
+    # deprecated:bool=Field(...)
 
     class Config:
         from_attributes=True
@@ -147,7 +147,7 @@ class upRoute(BaseModel):
     trainId:Optional[str]=Field(None)
     day:Optional[int]=Field(None)
     departure:Optional[str]=Field(None)
-    deprecated:Optional[bool]=Field(None)
+    # deprecated:Optional[bool]=Field(None)
 
 #-----------------------------------------------
 
@@ -177,3 +177,6 @@ class bookTrain(BaseModel):
     distance:int=Field(...)
     dep:str=Field(...)
     arr:str=Field(...)
+
+class inv(BaseModel):
+    date:datetime.date=Field()

@@ -33,3 +33,12 @@ async def get_trains(
     except AttributeError:
         pass
     return response
+
+
+@router.post("/test")
+async def add_inv(
+    *,
+    db:Session=Depends(get_db),
+    data:schemas.inv=Body(...)
+):
+    crud.testinv(db,data)

@@ -1,13 +1,13 @@
 from sqlalchemy.orm import Session
 
 from . import models
-from . import schemas,dependencies
+from . import schemas,dependencies,database
 from passlib.context import CryptContext
 
 from sqlalchemy import or_,and_,join
 from . import database
 
-from datetime import time,timedelta,datetime
+from datetime import time,timedelta,datetime,date as dt
 pwd_context=CryptContext(schemes=["bcrypt"],deprecated=["auto"])
 
 def chk_time(t:str):
@@ -43,7 +43,7 @@ def chk_staiton(db:Session,stns:list):
 
 def get_station(db:Session,stn:str=None):
     if stn is None:
-        data=db.query(models.Station).first()
+        data=db.query(models.Station).all()
         if data==[]:
             return schemas.error(status="failed",detail="value doesn't exists")
         return data
@@ -69,15 +69,15 @@ def remove_station(db:Session,stn:schemas.Station_id):
         return schemas.error(status="failed",detail="value doesn't exists")
     db.query(models.Station).filter(models.Station.id==stn.id).delete(synchronize_session=False)
     
-    response=db.query(models.Train).filter(or_(
+    db.query(models.Train).filter(or_(
         models.Train.stops.like(f"{stn.id}-%"),
         models.Train.stops.like(f"%-{stn.id}-%"),
         models.Train.stops.like(f"%-{stn.id}"),
-    )).all()
+    )).update({"deprecated":True})
 
-    for i in response:
-        db.query(models.Train).filter(models.Train.id==i.id).update({"deprecated":True})
-        db.query(models.Routine).filter(models.Routine.trainId==i.id).update({"deprecated":True})
+    # for i in response:
+    #     db.query(models.Train).filter(models.Train.id==i.id).update({"deprecated":True})
+    #     db.query(models.Routine).filter(models.Routine.trainId==i.id).update({"deprecated":True})
     
     db.commit()
     return res
@@ -131,7 +131,7 @@ def remove_train(db:Session,trn:schemas.Train_id):
     if res.status=="failed":
         return schemas.error(status="failed",detail="value doesn't exists")
     db.query(models.Train).filter(models.Train.id==trn.id).delete(synchronize_session=False)
-    db.query(models.Routine).filter(models.Routine.trainId==trn.id).update({"deprecated":True})
+    # db.query(models.Routine).filter(models.Routine.trainId==trn.id).update({"deprecated":True})
     db.commit()
     return res
     
@@ -250,7 +250,7 @@ def get_av_trains(db:Session,attr:schemas.avTrain):
         models.Train.remQuota,
         models.Routine.departure,
         models.Train.src
-    ).join(models.Routine).filter(models.Routine.day==d).filter(models.Train.stops.like(f"%{attr.src}%-%{attr.des}%")).filter(and_(models.Train.deprecated==0,models.Routine.deprecated==0)).all()
+    ).join(models.Routine).filter(models.Routine.day==d).filter(models.Train.stops.like(f"%{attr.src}%-%{attr.des}%")).filter(models.Train.deprecated==0).all()
     
     dep_dist=db.query(models.Station.dist).filter(models.Station.id==attr.src).first()
     arr_dist=db.query(models.Station.dist).filter(models.Station.id==attr.des).first()
@@ -281,8 +281,63 @@ def get_av_trains(db:Session,attr:schemas.avTrain):
     
     return avTrns
 
-# -- SQLite
 # SELECT * FROM train INNER JOIN routine ON train.id==routine.trainId WHERE day=1 AND (stops LIKE "%11%")
+def testinv(db:Session,data):
+    # print(data.date,type(data.date))
+    dat=dt(2023,8,1)
+    d={
+        "rid":1,
+        "date":dat,
+        "mainAvl":100,
+        "remAvl":100,
+        "mainWt":0,
+        "remWt":0,
+    }
+
+    model=models.Inventory(**d)
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+
+    # d=db.query(models.Inventory).filter(models.Inventory.id==1).first()
+    # print(d.routine_)
+    # r=db.query(models.Routine).filter(models.Routine.id==1).first()
+    # print(r.invs,r.trains)
+
+
+#populate inventory
+def populate():
+    db=database.sessionlocal()
+    db.query(models.Inventory).delete(synchronize_session=False)
+
+    currentDate=dt.today()
+    dates=[]
+    for i in range(1,15):
+        tDate=currentDate+timedelta(days=i)
+        # dates.append(tDate)
+
+        day=tDate.isoweekday()
+        data=db.query(models.Routine).filter(models.Routine.day==day).all()
+        for i in data:
+            d={
+                "rid":i.id,
+                "date":tDate,
+                "mainAvl":i.trains.mainQuota,
+                "remAvl":i.trains.remQuota,
+                "mainWt":0,
+                "remWt":0,
+            }
+            model=models.Inventory(**d)
+            db.add(model)
+
+    db.commit()
+
+    
+
+# get availability
+# def genChart -> generate chart of next day
+#def addInv -> add the extra day in inventory
+
 
 
 

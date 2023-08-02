@@ -2,7 +2,7 @@ from sqlalchemy.orm import relationship,Mapped,mapped_column
 from sqlalchemy import ForeignKey
 from .database import base
 
-from datetime import time
+from datetime import time,date as dt
 
 
 class User(base):
@@ -49,8 +49,9 @@ class Routine(base):
     trainId:Mapped[str]=mapped_column(ForeignKey("train.id"))
     day:Mapped[int]=mapped_column(nullable=False)
     departure:Mapped[time]=mapped_column(nullable=False)
-    deprecated:Mapped[bool]=mapped_column(default=False)
+    # deprecated:Mapped[bool]=mapped_column(default=False)
     trains:Mapped["Train"]=relationship(back_populates="routines")
+    invs:Mapped["Inventory"]=relationship(back_populates="routine_")
 
 #inital booking inventory
 #cancelled inventory
@@ -66,3 +67,15 @@ if remquota full -> waiting if cancelled inv => waiting -> confirm
 '''
 
 
+
+class Inventory(base):
+    __tablename__="inventory"
+
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+    rid:Mapped[int]=mapped_column(ForeignKey("routine.id"))
+    date:Mapped[dt]=mapped_column()
+    mainAvl:Mapped[int]=mapped_column(nullable=False)
+    remAvl:Mapped[int]=mapped_column(nullable=False)
+    mainWt:Mapped[int]=mapped_column(nullable=False)
+    remWt:Mapped[int]=mapped_column(nullable=False)
+    routine_:Mapped["Routine"]=relationship(back_populates="invs")

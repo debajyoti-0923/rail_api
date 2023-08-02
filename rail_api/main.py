@@ -7,9 +7,26 @@ from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from .dependencies import get_db,authenticate_user,create_access_token
 
-
+crud.populate()
 models.base.metadata.create_all(bind=engine)
 app=FastAPI()
+
+'''
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
+dt=datetime.now()
+
+scheduler=BackgroundScheduler()
+scheduler.add_job(populate,'interval',days=1,start_date=dt)
+scheduler.start()
+
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
+''' 
+
 
 #routes
 from .routers import users,admin,book
