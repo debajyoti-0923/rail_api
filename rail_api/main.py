@@ -96,4 +96,4 @@ async def register_user(
             detail="Username already exists"
         )
     response=crud.create_user(db=db,user=user)
-    return schemas.UserEmail(username=response.username,email=response.email)
+    return schemas.UserEmail(id=response.id,username=response.username,email=response.email)

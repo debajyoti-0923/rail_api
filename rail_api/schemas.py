@@ -5,6 +5,7 @@ import datetime
 
 
 class UserName(BaseModel):
+    id:int=Field(None)
     username:str=Field(...,description="username",max_length=20)
 
 class UserEmail(UserName):
@@ -162,21 +163,36 @@ class resTrain(BaseModel):
     name:str=Field(...)
     price:float=Field(...)
     speed:float=Field(...)
-    # av:int=Field(...)
     dist:float=Field(...)
     dep:datetime.datetime=Field(...)
     arr:datetime.datetime=Field(...)
+    routeId:int=Field(...)
+    date:datetime.date=Field(...)
+    quota:bool=Field(...)
 
-#---------------------------------------------------
 
-class bookTrain(BaseModel):
-    id:str=Field(...)
-    name:str=Field(...)
-    av:int=Field(...)
-    price:int=Field(...)
-    distance:int=Field(...)
-    dep:str=Field(...)
-    arr:str=Field(...)
+class seatAvl(BaseModel):
+    rId:int=Field(...)
+    date:datetime.date=Field(...)
+    quota:bool=Field(...)
 
-class inv(BaseModel):
-    date:datetime.date=Field()
+class resSeat(BaseModel):
+    avl:int=Field(...)
+    wt:int=Field(...)
+
+
+#------------------------------------------------------
+
+class bookTickets(BaseModel):
+    rId:int=Field(...)
+    date:datetime.date=Field(...)
+    src:str=Field(...)
+    des:str=Field(...)
+    numT:int=Field(...)
+    names:list[str]=Field(...)
+    ages:list[int]=Field(...)
+    quota:bool=Field(...)
+
+class resPNR(BaseModel):
+    status:str=Field("OK")
+    pnr:str=Field(...)

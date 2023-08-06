@@ -15,6 +15,7 @@ class User(base):
     email:Mapped[str]=mapped_column(nullable=False,unique=True)
     hashed_password:Mapped[str]=mapped_column(nullable=False)
     admin:Mapped[bool]
+    tickets:Mapped[list["Tickets"]]=relationship(back_populates="user")
 
 
 class Station(base):
@@ -51,7 +52,7 @@ class Routine(base):
     departure:Mapped[time]=mapped_column(nullable=False)
     # deprecated:Mapped[bool]=mapped_column(default=False)
     trains:Mapped["Train"]=relationship(back_populates="routines")
-    invs:Mapped["Inventory"]=relationship(back_populates="routine_")
+    invs:Mapped[list["Inventory"]]=relationship(back_populates="routine_")
 
 #inital booking inventory
 #cancelled inventory
@@ -79,3 +80,51 @@ class Inventory(base):
     mainWt:Mapped[int]=mapped_column(nullable=False)
     remWt:Mapped[int]=mapped_column(nullable=False)
     routine_:Mapped["Routine"]=relationship(back_populates="invs")
+    tickets:Mapped[list["Tickets"]]=relationship(back_populates="invs")
+
+
+class Tickets(base):
+    __tablename__="tickets"
+
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+    pnr:Mapped[str]=mapped_column(nullable=False)
+    invId:Mapped[int]=mapped_column(ForeignKey("inventory.id"))
+    src:Mapped[str]=mapped_column(nullable=False)
+    des:Mapped[str]=mapped_column(nullable=False)
+    userId:Mapped[int]=mapped_column(ForeignKey("users.id"))
+    name:Mapped[str]=mapped_column(nullable=False)
+    age:Mapped[int]=mapped_column(nullable=False)
+    seatNo:Mapped[int]=mapped_column(default=None)
+    status:Mapped[int]=mapped_column(nullable=False)   #Confirm-1 ; W-0 ; cancel-2
+    invs:Mapped["Inventory"]=relationship(back_populates="tickets")
+    user:Mapped["User"]=relationship(back_populates="tickets")
+
+
+#     confirms:Mapped["Confirm"]=relationship(back_populates="ticket")
+#     waitings:Mapped["Waiting"]=relationship(back_populates="ticket")
+#     cancels:Mapped["Cancel"]=relationship(back_populates="ticket")
+
+
+# class Confirm(base):
+#     __tablename__="confirm"
+
+#     id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+#     tId:Mapped[int]=mapped_column(ForeignKey("tickets.id"))
+#     pnr:Mapped[str]=mapped_column(nullable=False)
+#     ticket:Mapped["Tickets"]=relationship(back_populates="confirms")
+
+# class Waiting(base):
+#     __tablename__="waiting"
+
+#     id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+#     tId:Mapped[int]=mapped_column(ForeignKey("tickets.id"))
+#     pnr:Mapped[str]=mapped_column(nullable=False)
+#     ticket:Mapped["Tickets"]=relationship(back_populates="waitings")
+    
+# class Cancel(base):
+#     __tablename__="cancel"
+
+#     id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+#     tId:Mapped[int]=mapped_column(ForeignKey("tickets.id"))
+#     pnr:Mapped[str]=mapped_column(nullable=False)
+#     ticket:Mapped["Tickets"]=relationship(back_populates="cancels")

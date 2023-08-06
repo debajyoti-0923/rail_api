@@ -16,7 +16,7 @@ router=APIRouter(
 get src dest day get train
 '''
 
-@router.post("/get_trn",response_model=list[schemas.resTrain],status_code=201)
+@router.post("/avl_trn",response_model=list[schemas.resTrain],status_code=201)
 async def get_trains(
     *,
     attr:schemas.avTrain=Body(...),
@@ -35,10 +35,28 @@ async def get_trains(
     return response
 
 
-@router.post("/test")
-async def add_inv(
+# @router.post("/test")
+# async def add_inv(
+#     *,
+#     db:Session=Depends(get_db),
+#     data:schemas.inv=Body(...)
+# ):
+#     crud.testinv(db)
+
+@router.post("/avl_seat")
+async def seat_status(
     *,
     db:Session=Depends(get_db),
-    data:schemas.inv=Body(...)
+    data:schemas.seatAvl=Body(...)
 ):
-    crud.testinv(db,data)
+    response=crud.get_seat_av(db,data)
+    try:
+        if response.status=="failed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=dict(response),
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+    except AttributeError:
+        pass
+    return response

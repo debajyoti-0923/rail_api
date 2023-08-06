@@ -4,7 +4,7 @@ from . import models
 from . import schemas,dependencies,database
 from passlib.context import CryptContext
 
-from sqlalchemy import or_,and_,join
+from sqlalchemy import or_,and_,join,func
 from . import database
 
 from datetime import time,timedelta,datetime,date as dt
@@ -237,6 +237,9 @@ def mod_route(db:Session,r:schemas.upRoute):
 #book
 
 def get_av_trains(db:Session,attr:schemas.avTrain):
+    cDate=dt.today()
+    if attr.date<cDate+timedelta(days=1) or attr.date>cDate+timedelta(days=14):
+        return schemas.error(status="failed",detail="invalid date")
     d=attr.date.isoweekday()
     res=chk_staiton(db,[attr.src,attr.des])
     if res.status=="failed":
@@ -249,7 +252,8 @@ def get_av_trains(db:Session,attr:schemas.avTrain):
         models.Train.mainQuota,
         models.Train.remQuota,
         models.Routine.departure,
-        models.Train.src
+        models.Train.src,
+        models.Routine.id,
     ).join(models.Routine).filter(models.Routine.day==d).filter(models.Train.stops.like(f"%{attr.src}%-%{attr.des}%")).filter(models.Train.deprecated==0).all()
     
     dep_dist=db.query(models.Station.dist).filter(models.Station.id==attr.src).first()
@@ -258,7 +262,6 @@ def get_av_trains(db:Session,attr:schemas.avTrain):
     
     avTrns=[]
     for i in response:
-
         src_stn=db.query(models.Station.dist).filter(models.Station.id==i[7]).first()
         rlvDist=abs(src_stn[0]-dep_dist[0])
 
@@ -274,35 +277,105 @@ def get_av_trains(db:Session,attr:schemas.avTrain):
             speed=i[3],
             dist=dist,
             dep=dep,
-            arr=arr
+            arr=arr,
+            routeId=i[8],
+            date=attr.date,
+            quota=(attr.src==i[7])
         )
 
         avTrns.append(res)
     
     return avTrns
 
-# SELECT * FROM train INNER JOIN routine ON train.id==routine.trainId WHERE day=1 AND (stops LIKE "%11%")
-def testinv(db:Session,data):
-    # print(data.date,type(data.date))
-    dat=dt(2023,8,1)
-    d={
-        "rid":1,
-        "date":dat,
-        "mainAvl":100,
-        "remAvl":100,
-        "mainWt":0,
-        "remWt":0,
-    }
+#change after creating booking tables
+def get_seat_av(db:Session,data:schemas.seatAvl):
+    res=db.query(models.Inventory).filter(
+        models.Inventory.rid==data.rId,
+        models.Inventory.date==data.date
+    ).first()
 
-    model=models.Inventory(**d)
-    db.add(model)
+    if res is None:
+        return schemas.error(status="failed",detail="invalid request")
+    
+    if data.quota:
+        r=schemas.resSeat(
+            avl=res.mainAvl,
+            wt=res.mainWt
+        )
+    else:
+        r=schemas.resSeat(
+            avl=res.remAvl,
+            wt=res.remWt
+        )
+    return r
+
+#-------------------------------------------------------------------
+
+##handle ticket availibility
+
+def add_ticket(db:Session,user:schemas.UserName,details:schemas.bookTickets):
+    res=db.query(models.Inventory).filter(
+        models.Inventory.rid==details.rId,
+        models.Inventory.date==details.date
+    ).first()
+
+    if details.quota:
+        avSeats=res.mainAvl
+        startNo=(res.routine_.trains.mainQuota-res.mainAvl)+1
+    else:
+        avSeats=res.remAvl
+        startNo=(res.routine_.trains.remQuota-res.remAvl)+1
+
+    #ADDING TO TICKETS DB
+    if res is None:
+        return schemas.error(status="failed",detail="invalid request")
+    
+    if details.numT!=len(details.names) or details.numT!=len(details.ages):
+        return schemas.error(status="failed",detail="number of tickets and provided values doesn't match")
+
+    dbModels:list[models.Tickets]=[]
+    pnr=f"{res.routine_.trainId}{res.id:03}{user.id:03}"
+    
+    for i in range(min(details.numT,avSeats)):
+        dbModel=models.Tickets(pnr=pnr,invId=res.id,userId=user.id,name=details.names[i],age=details.ages[i],seatNo=startNo,status=1)
+        dbModels.append(dbModel)
+        startNo+=1
+    # db.add_all(dbModels)
+
+    for i in range(avSeats,details.numT):
+        dbModel=models.Tickets(pnr=pnr,invId=res.id,userId=user.id,name=details.names[i],age=details.ages[i],status=0)
+        dbModels.append(dbModel)
+    db.add_all(dbModels)
+
+    print(dbModels,avSeats,startNo)
+
+    #MODIFYING INVENTORY
+    if details.quota:
+        db.query(models.Inventory).filter(
+            models.Inventory.rid==details.rId,
+            models.Inventory.date==details.date
+        ).update({"mainAvl":res.mainAvl-details.numT},synchronize_session=False)
+    else:
+        db.query(models.Inventory).filter(
+            models.Inventory.rid==details.rId,
+            models.Inventory.date==details.date
+        ).update({"remAvl":res.remAvl-details.numT},synchronize_session=False)
+
+
     db.commit()
-    db.refresh(model)
 
-    # d=db.query(models.Inventory).filter(models.Inventory.id==1).first()
-    # print(d.routine_)
-    # r=db.query(models.Routine).filter(models.Routine.id==1).first()
-    # print(r.invs,r.trains)
+    response=schemas.resPNR(pnr=pnr)
+    return response
+
+def get_tickets(db:Session,user:schemas.UserName):
+    res=db.query(models.Tickets).filter(models.Tickets.userId==user.id).group_by(models.Tickets.pnr).all()
+    for i in res:
+        print(i.id)
+
+
+
+
+
 
 
 #populate inventory
@@ -311,7 +384,7 @@ def populate():
     db.query(models.Inventory).delete(synchronize_session=False)
 
     currentDate=dt.today()
-    dates=[]
+    # dates=[]
     for i in range(1,15):
         tDate=currentDate+timedelta(days=i)
         # dates.append(tDate)
@@ -319,22 +392,19 @@ def populate():
         day=tDate.isoweekday()
         data=db.query(models.Routine).filter(models.Routine.day==day).all()
         for i in data:
-            d={
-                "rid":i.id,
-                "date":tDate,
-                "mainAvl":i.trains.mainQuota,
-                "remAvl":i.trains.remQuota,
-                "mainWt":0,
-                "remWt":0,
-            }
-            model=models.Inventory(**d)
+            model=models.Inventory(
+                rid=i.id,
+                date=tDate,
+                mainAvl=i.trains.mainQuota,
+                remAvl=i.trains.remQuota,
+                mainWt=0,
+                remWt=0,
+            )
             db.add(model)
 
     db.commit()
 
-    
 
-# get availability
 # def genChart -> generate chart of next day
 #def addInv -> add the extra day in inventory
 
