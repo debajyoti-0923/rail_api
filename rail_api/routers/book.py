@@ -35,14 +35,6 @@ async def get_trains(
     return response
 
 
-# @router.post("/test")
-# async def add_inv(
-#     *,
-#     db:Session=Depends(get_db),
-#     data:schemas.inv=Body(...)
-# ):
-#     crud.testinv(db)
-
 @router.post("/avl_seat")
 async def seat_status(
     *,
@@ -50,6 +42,23 @@ async def seat_status(
     data:schemas.seatAvl=Body(...)
 ):
     response=crud.get_seat_av(db,data)
+    try:
+        if response.status=="failed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=dict(response),
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+    except AttributeError:
+        pass
+    return response
+
+@router.get("/get_pnr")
+async def get_pnr_stats(
+    pnr:str,
+    db:Session=Depends(get_db)
+):
+    response=crud.get_pnr(db,pnr)
     try:
         if response.status=="failed":
             raise HTTPException(

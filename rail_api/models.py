@@ -21,7 +21,7 @@ class User(base):
 class Station(base):
     __tablename__="station"
 
-    id:Mapped[str]=mapped_column(primary_key=True)
+    id:Mapped[int]=mapped_column(primary_key=True)
     name:Mapped[str]=mapped_column(nullable=False)
     abv:Mapped[str]=mapped_column(nullable=False)
     dist:Mapped[int]=mapped_column(nullable=False)
@@ -30,10 +30,10 @@ class Station(base):
 class Train(base):
     __tablename__="train"
 
-    id:Mapped[str]=mapped_column(primary_key=True)
+    id:Mapped[int]=mapped_column(primary_key=True)
     name:Mapped[str]=mapped_column(nullable=False)
-    src:Mapped[str]=mapped_column(nullable=False)
-    des:Mapped[str]=mapped_column(nullable=False)
+    src:Mapped[int]=mapped_column(nullable=False)
+    des:Mapped[int]=mapped_column(nullable=False)
     stops:Mapped[str]=mapped_column(nullable=False)
     price:Mapped[float]=mapped_column(nullable=False)
     mainQuota:Mapped[int]=mapped_column(nullable=False)
@@ -47,7 +47,7 @@ class Routine(base):
     __tablename__="routine"
 
     id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
-    trainId:Mapped[str]=mapped_column(ForeignKey("train.id"))
+    trainId:Mapped[int]=mapped_column(ForeignKey("train.id"))
     day:Mapped[int]=mapped_column(nullable=False)
     departure:Mapped[time]=mapped_column(nullable=False)
     # deprecated:Mapped[bool]=mapped_column(default=False)
@@ -77,8 +77,7 @@ class Inventory(base):
     date:Mapped[dt]=mapped_column()
     mainAvl:Mapped[int]=mapped_column(nullable=False)
     remAvl:Mapped[int]=mapped_column(nullable=False)
-    mainWt:Mapped[int]=mapped_column(nullable=False)
-    remWt:Mapped[int]=mapped_column(nullable=False)
+    canceled:Mapped[int]=mapped_column(nullable=False)
     routine_:Mapped["Routine"]=relationship(back_populates="invs")
     tickets:Mapped[list["Tickets"]]=relationship(back_populates="invs")
 
@@ -89,12 +88,17 @@ class Tickets(base):
     id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
     pnr:Mapped[str]=mapped_column(nullable=False)
     invId:Mapped[int]=mapped_column(ForeignKey("inventory.id"))
-    src:Mapped[str]=mapped_column(nullable=False)
-    des:Mapped[str]=mapped_column(nullable=False)
+    src:Mapped[int]=mapped_column(nullable=False)
+    des:Mapped[int]=mapped_column(nullable=False)
+    dep:Mapped[time]=mapped_column(nullable=False)
+    arr:Mapped[time]=mapped_column(nullable=False)
+    dist:Mapped[int]=mapped_column(nullable=False)
+    price:Mapped[int]=mapped_column(nullable=False)
+    quota:Mapped[bool]=mapped_column(nullable=False)
     userId:Mapped[int]=mapped_column(ForeignKey("users.id"))
     name:Mapped[str]=mapped_column(nullable=False)
     age:Mapped[int]=mapped_column(nullable=False)
-    seatNo:Mapped[int]=mapped_column(default=None)
+    seatNo:Mapped[int]=mapped_column(nullable=True)
     status:Mapped[int]=mapped_column(nullable=False)   #Confirm-1 ; W-0 ; cancel-2
     invs:Mapped["Inventory"]=relationship(back_populates="tickets")
     user:Mapped["User"]=relationship(back_populates="tickets")

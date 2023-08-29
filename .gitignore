@@ -3,5 +3,4 @@ rail_app
 test
 rail_app.db
 rail_app_test.db
-alembic
-alembic.ini
+dummyRoutine.txt
